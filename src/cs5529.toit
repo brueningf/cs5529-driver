@@ -36,7 +36,6 @@ class Cs5529:
 
   constructor .device_/spi.Device:
     registers_ = device_.registers
-    // good catch. Would have taken me a lot of time to notice.
     registers_.set-msb-write true  // Ensure MSB write mode.
     // Most people probably use the internal oscillator, and the given
     // start-up time is for the internal oscillator. See footnote 21 on page 8.
@@ -54,7 +53,7 @@ class Cs5529:
     unreachable
 
   write-register_ register/int data/ByteArray:
-    // The CS5529_F5 only seems to have 5 registers.
+    // The CS5529_F5 has 5 registers.
     assert: 0 <= register <= 4
     device_.with-reserved-bus:
       write-command := 0b1000_0000 | (register << 1)
@@ -65,7 +64,6 @@ class Cs5529:
     device_.write #[command]
 
   // Serial Port Synchronization
-  // I would make this function private.
   sync_:
     sync-bytes := ByteArray 17: 0xFF
     sync-bytes[16] = 0xFE  // Final SYNC0 command.
@@ -89,21 +87,17 @@ class Cs5529:
 
     configure-adc_
 
-  // Configure ADC (e.g., word rate, mode)
-  configure-adc_:
-    // No need to set the Port flat to inactive. That's the default.
-
   read --raw/True -> int:
     // Start the conversion.
     send-command_ PERFORM-SINGLE-CONVERSION_
-    // The datasheet probably states somewhere how long we have to wait for a minimum conversion time.
     sleep --ms=50
+
     // Once the conversion is done, the configuration's done flag is set.
     while true:  // You should probably add a timeout here.
       read-register_ CONFIG_
       if (CONFIG_ & CONFIG-DONE-FLAG-BIT_) != 0: break
       sleep --ms=10
-    // The conversion is done.
+
     // Read it. This automatically clears the done flag.
     return read-register_ CONVERSION_
 

@@ -25,7 +25,7 @@ class Cs5529:
   static CONVERSION_ ::= 0b011
 
   // Configuration flags.
-  static CONFIG-DONE-FLAG-BIT_ ::= 0x04
+  static CONFIG-DONE-FLAG-BIT_ ::= 0x08
 
   // Commands.
   static PERFORM-SINGLE-CONVERSION_ ::= 0xC0
@@ -73,29 +73,28 @@ class Cs5529:
   initialize_:
     sync_
 
-    sleep --ms=1
+    sleep --ms=10
     print (read-register_ CONFIG_)
-
     // Set reset state.
     write-register_ CONFIG_ #[0x00, 0x00, 0x80]
-    sleep --ms=1
+    sleep --ms=10
     // Read config.
     print (read-register_ 2)
     // Clear reset.
     write-register_ 2 #[0x00, 0x00, 0x00]
-    sleep --ms=1
-
-    configure-adc_
+    sleep --ms=10
+    write-register_ CONFIG_ #[0x00, 0xB0, 0x00]
 
   read --raw/True -> int:
+    // set to highest res
     // Start the conversion.
     send-command_ PERFORM-SINGLE-CONVERSION_
     sleep --ms=50
 
     // Once the conversion is done, the configuration's done flag is set.
     while true:  // You should probably add a timeout here.
-      read-register_ CONFIG_
-      if (CONFIG_ & CONFIG-DONE-FLAG-BIT_) != 0: break
+      config := read-register_ CONFIG_
+      if (config & CONFIG-DONE-FLAG-BIT_) != 0: break
       sleep --ms=10
 
     // Read it. This automatically clears the done flag.
@@ -104,4 +103,5 @@ class Cs5529:
   read -> float:
     // Use the "Output coding" section on page 22 to convert the
     // raw value to a voltage.
-    throw "UNIMPLEMENTED"
+    raw := read --raw
+    return (raw >> 8) / 26.0

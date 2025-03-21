@@ -37,8 +37,8 @@ class Cs5529:
   constructor .device_/spi.Device:
     registers_ = device_.registers
     registers_.set-msb-write true  // Ensure MSB write mode.
-    // Most people probably use the internal oscillator, and the given
-    // start-up time is for the internal oscillator. See footnote 21 on page 8.
+
+    // start-up time external oscillator. See footnote 21 on page 8.
     sleep --ms=500  // Wait for oscillator to stabilize.
     initialize_
 
@@ -72,21 +72,15 @@ class Cs5529:
   // Initialize CS5529.
   initialize_:
     sync_
-
+    write-register_ CONFIG_ #[0x00, 0x00, 0x80] // Set reset state
     sleep --ms=10
-    print (read-register_ CONFIG_)
-    // Set reset state.
-    write-register_ CONFIG_ #[0x00, 0x00, 0x80]
+    read-register_ 2 // Read config to clear reset
     sleep --ms=10
-    // Read config.
-    print (read-register_ 2)
-    // Clear reset.
-    write-register_ 2 #[0x00, 0x00, 0x00]
+    write-register_ 2 #[0x00, 0x00, 0x00] // Clear reset (again)
     sleep --ms=10
-    write-register_ CONFIG_ #[0x00, 0xB0, 0x00]
+    write-register_ CONFIG_ #[0x00, 0xB0, 0x00] // Set to highest resolution
 
   read --raw/True -> int:
-    // set to highest res
     // Start the conversion.
     send-command_ PERFORM-SINGLE-CONVERSION_
     sleep --ms=50
@@ -100,8 +94,9 @@ class Cs5529:
     // Read it. This automatically clears the done flag.
     return read-register_ CONVERSION_
 
-  read -> float:
-    // Use the "Output coding" section on page 22 to convert the
-    // raw value to a voltage.
-    raw := read --raw
-    return (raw >> 8) / 26.0
+  read --vref/2.5 -> float:
+    range := 2**16  // 16-bit ADC.
+    raw := (read --raw) >> 8 // discard optional 8 bits of status
+
+    return (raw / range) * vref
+

@@ -12,3 +12,4 @@ main:
     --frequency=cs5529.MAX-BUS-FREQUENCY
 
   adc := cs5529 device
+  print(adc.read)
